@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH --job-name=hello
+#SBATCH --output=hello.%j.out
+#SBATCH --time=00:10:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --partition=parallel
+
+# conda run --no-capture-output -n py314t python 
+# open bash in task claster.
+# srun --jobid=<job_id> -w <node> --pty /bin/bash
+echo "Hello from $(hostname)!"
+conda run -n py314t ipython Playground/basic_gnn.ipynb
