@@ -40,4 +40,3 @@ class Model(nn.Module):
         x = self.fc3(x)
         return x
     pass
-

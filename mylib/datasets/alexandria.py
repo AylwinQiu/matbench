@@ -191,10 +191,3 @@ class Dataset(DS):
 # # Comming code is just for test purpose.
 
 # %%
-if __name__ == "__main__":
-    print(__file__)
-    ds = Dataset(mode="graph")
-    print(ds.__len__())
-    # breakpoint()
-    for i in range(100):
-        print(i, ds[i][3])

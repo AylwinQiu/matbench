@@ -10,4 +10,4 @@
 # open bash in task claster.
 # srun --jobid=<job_id> -w <node> --pty /bin/bash
 echo "Hello from $(hostname)!"
-conda run -n py314t ipython Playground/basic_gnn.ipynb
+conda run -n matbench ipython Playground/basic_gnn.ipynb
