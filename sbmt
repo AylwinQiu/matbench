@@ -1,13 +1,16 @@
 #!/bin/bash
 #SBATCH --job-name=hello
 #SBATCH --output=hello.%j.out
-#SBATCH --time=00:10:00
+#SBATCH --time=00:01:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=parallel
+#SBATCH --partition=a100
+#SBATCH --qos=qos_gpu
+#SBATCH --account=coses1_gpu
+#SBATCH --gres=gpu:1
 
-# conda run --no-capture-output -n py314t python 
-# open bash in task claster.
-# srun --jobid=<job_id> -w <node> --pty /bin/bash
+module load cuda/12.6.1
+nvidia-smi
+lspci | grep -i nvidia
 echo "Hello from $(hostname)!"
-conda run -n matbench ipython Playground/basic_gnn.ipynb
+conda run -n matbench python main.py

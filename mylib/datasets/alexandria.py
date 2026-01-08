@@ -7,8 +7,11 @@ from ase.data import atomic_numbers  # this is a dict
 from pymatgen.core.lattice import Lattice
 from torch.utils.data import DataLoader as DL
 from torch.utils.data import Dataset as DS
+from torch_geometric.data import Data as GDS
 import os
-
+from ultraimport.ultraimport import ultraimport
+# from .. import tools
+tools = ultraimport("__dir__/../tools.py")
 def load_dataset_to_tmp():
     """
     This function will load the Alexandria dataset to ./tmp/Alexandria
@@ -29,11 +32,11 @@ def read_json(path: str) -> dict:
 def atoms_to_graph(atoms: list[dict], matrix: list[list], cutoff: float|int):
     """
     args:
-        - atom: the 4th return from dataset.
+        - `atom`: the 4th return from dataset.
             - This is a list of dictionaries where the diction have 'element' and 'abc' keys.
-        - matrix: is a 2d list with shape 3X3.
-        - cutoff: the threshold for bond generation.
-        - curoff_mode: could be "min_length" or "edges_num"
+        - `matrix`: is a 2d list with shape 3X3.
+        - `cutoff`: the threshold for bond generation.
+        - `curoff_mode`: could be "min_length" or "edges_num"
             - for "min_length": the bond length will not larger than ${cutoff}.
             - for "edges_num": there will have ${cutoff} bonds for each atoms.
     return:
@@ -95,13 +98,23 @@ def atoms_to_graph(atoms: list[dict], matrix: list[list], cutoff: float|int):
 
 
 class Dataset(DS):
-    def __init__(self, root:str, mode:str="graph", cutoff=1.5, partial=(0.0, 1.0), device='cpu', tensorize_work=False):
+    def __init__(self, root:str, 
+                 mode:str="graph", 
+                 cutoff=1.5, 
+                 partial=(0.0, 1.0), 
+                 device='cpu', 
+                 tensorize_work:bool=False,
+                 to_torch_geometric_data:bool=True,
+                 ):
         """
         args:
             - mode : should be 'coor' or 'graph', 'coor' is not for training purpose.
             - cutoff: if mode='graph', you should specify the cutoff for bond generation.
             - partial: load part of data into memory.
                 - this parameters load the data in range (from, to), where from, to are fraction.
+            - device: the device to load the tensor data.
+            - tensorize_work: whether to convert the data into tensor type.
+            - to_torch_geometric_data: whether to convert the graph data into torch_geometric Data type.
         returns:
         """
         self.energy = []
@@ -112,6 +125,7 @@ class Dataset(DS):
         self.cutoff = cutoff
         self.device = device
         self.tensorize_work = tensorize_work
+        self.to_torch_geometric_data = to_torch_geometric_data
         for i in [
             "000"
         ]:  # in each json file you can replace the list here by ['000', '001', '002'], but seems we have no more memory to do this.
@@ -142,7 +156,7 @@ class Dataset(DS):
     def __len__(self) -> int:
         return self.energy.__len__()
     
-    def tensorize(self, energy, e_above_hull, matrix, graph):
+    def tensorize(self, to_geometric_data:bool, energy, e_above_hull, matrix, graph):
         '''
         This method will convert alexandria.Dataset graph output into tensor type
         args:
@@ -150,8 +164,14 @@ class Dataset(DS):
         return:
             - TODO
         '''
+        
         if not self.tensorize_work:
-            return energy, e_above_hull, matrix, graph
+            return (energy, e_above_hull, matrix, graph) if not to_geometric_data else GDS(
+                node_features=tc.tensor(graph[0]).float(),
+                edge_index=tc.tensor(graph[1]),
+                edge_weight=tc.tensor(graph[2]).float(),
+                y=tc.tensor([[energy, e_above_hull]]).float(),
+                )
         # Create the adjacency matrix.
         return (tc.tensor(energy).to(self.device), 
                 tc.tensor(e_above_hull).to(self.device), 
@@ -159,8 +179,12 @@ class Dataset(DS):
                 tc.tensor(graph[0]).to(self.device).float(), # This is the nodes_features
                 tc.tensor(graph[1]).to(self.device), # This is the edge_index
                 tc.tensor(graph[2]).to(self.device).float(), # This is the edge_weight
-        )
-    
+                ) if not to_geometric_data else GDS(
+                    node_features=tc.tensor(graph[0]).to(self.device).float(),
+                    edge_index=tc.tensor(graph[1]).to(self.device),
+                    edge_weight=tc.tensor(graph[2]).to(self.device).float(),
+                    y=tc.tensor([[energy, e_above_hull]]).to(self.device).float(),
+                )
     def __getitem__(self, x):
         """
         return: energy, e_above_hull, matrix, atoms
@@ -168,7 +192,7 @@ class Dataset(DS):
         if self.mode == "coor":
             return self.energy[x], self.e_above_hull[x], self.matrix[x], self.atoms[x]
         if self.mode == "graph":
-            # Handel the slice x input.
+            # Handle the slice x input.
             if type(x)==slice:
                 ans_graph = []
                 for each_pair in zip(self.atoms[x], self.matrix[x]):
@@ -178,6 +202,7 @@ class Dataset(DS):
             else:
                 ans_graph = atoms_to_graph(self.atoms[x], self.matrix[x], cutoff=self.cutoff)
             return self.tensorize(
+                self.to_torch_geometric_data,
                 self.energy[x],
                 self.e_above_hull[x],
                 self.matrix[x],
@@ -186,8 +211,19 @@ class Dataset(DS):
         # unreachable
         raise Exception('In this dataset, mode should in ["coor", "graph"]')
     pass
-    
+
 # %% [markdown]
 # # Comming code is just for test purpose.
 
 # %%
+if __name__ == "__main__":
+    # Debug section
+    print(0)
+    dataset = Dataset(root=tools.find_project_root(__file__), partial=(0.0,0.01), tensorize_work=True)
+    print(1)
+    for i in range(10):
+        print("\n\n\n\n")
+        print(dataset[i])
+        dataset.to_torch_geometric_data = False
+        print(dataset[i])
+    # TODO

@@ -5,3 +5,7 @@ __pycache__/
 .env
 .vscode/
 .idea/
+.ipynb_checkpoints
+wandb/
+*.out
+/.pixi
